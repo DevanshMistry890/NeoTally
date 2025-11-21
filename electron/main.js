@@ -1,28 +1,27 @@
-const { app, BrowserWindow, Menu, ipcMain } = require('electron'); // ADD Menu, ipcMain
+const { app, BrowserWindow, Menu, ipcMain } = require('electron'); 
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const url = require('url');
-const log = require('electron-log'); // Assuming electron-log is installed
+const log = require('electron-log'); 
 
-// 1. Setup Logging for Main Process
-log.transports.file.level = 'info';
+// 1. Setup Logging
+log.transports.file.level = 'info'; 
 log.info('App starting...');
 
 // Function that runs when the 'Check for Updates' menu item is clicked
 function manualCheckForUpdates(win) {
     if (!app.isPackaged) {
         log.info('Manual Check for Updates skipped: Not packaged.');
+        win.webContents.send('update-status', 'skipped'); 
         return;
     }
 
     log.info('Manual check initiated...');
-    // Set logging to electron-log so we can see autoUpdater messages
     autoUpdater.logger = log; 
-    
-    // Clear old listeners before checking to prevent memory leaks/duplicate calls
     autoUpdater.removeAllListeners('update-available');
     autoUpdater.removeAllListeners('update-not-available');
     autoUpdater.removeAllListeners('error');
+    autoUpdater.removeAllListeners('update-downloaded');
     
     // Configure where to check
     autoUpdater.setFeedURL({
@@ -30,44 +29,75 @@ function manualCheckForUpdates(win) {
         owner: 'DevanshMistry890', 
         repo: 'NeoTally'
     });
-
-    // 2. Set up Listeners to log status to the main process console
+    
+    // Set up Listeners to send status to the Renderer (App.tsx)
     autoUpdater.on('update-available', () => {
         log.info('Update available. Downloading...');
-        // We will send a message to the Renderer later to show a notification
+        win.webContents.send('update-status', 'available'); 
     });
     
     autoUpdater.on('update-not-available', () => {
         log.info('No update available.');
+        win.webContents.send('update-status', 'not-available'); 
     });
 
     autoUpdater.on('update-downloaded', () => {
         log.info('Update downloaded; installing on quit.');
+        win.webContents.send('update-status', 'downloaded'); 
     });
 
     autoUpdater.on('error', (err) => {
         log.error('Update check failed:', err);
+        win.webContents.send('update-status', `error:${err.message}`); 
     });
     
-    // 3. Trigger the check
+    // Trigger the check and send a status immediately
     autoUpdater.checkForUpdates();
+    win.webContents.send('update-status', 'checking'); 
 }
 
 function createAppMenu(mainWindow) {
     const template = [
-        // Basic menus
+        // 1. FILE Menu
         { label: 'File', submenu: [{ label: 'Exit', role: 'quit' }] },
+        
+        // 2. EDIT Menu
         { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }] },
         
-        // Help menu with update check
+        // 3. WINDOW Menu (Standard OS controls + DevTools)
+        {
+            label: 'Window',
+            submenu: [
+                { role: 'minimize' },
+                { role: 'zoom' },
+                { type: 'separator' },
+                // Manual DevTools Toggle
+                { role: 'toggledevtools' } 
+            ]
+        },
+        
+        // 4. HELP Menu
         {
             label: 'Help',
             submenu: [
                 {
                     label: 'Check for Updates',
-                    // This calls the update function when the user clicks the menu item
                     click() {
                         manualCheckForUpdates(mainWindow); 
+                    }
+                },
+                { type: 'separator' },
+                // ABOUT Dialogue
+                {
+                    label: 'About NeoTally',
+                    click() {
+                        const { dialog } = require('electron');
+                        dialog.showMessageBox(mainWindow, {
+                            type: 'info',
+                            title: 'About NeoTally',
+                            message: 'NeoTally',
+                            detail: `Version: ${app.getVersion()}\nMade by Shivam Mistry`
+                        });
                     }
                 }
             ]
@@ -95,12 +125,10 @@ function createWindow() {
         : 'http://localhost:5173'; 
 
     win.loadURL(startUrl);
-
-    if (!isPackaged) {
-        win.webContents.openDevTools({ mode: 'detach' });
-    }
     
-    // Return the window object so we can use it in other functions
+    // DEVTOOLS IS NOW MANUAL VIA MENU
+    // The previous automatic check is removed here
+
     return win; 
 }
 
