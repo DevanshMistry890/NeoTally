@@ -1,0 +1,5 @@
+{
+  "name": "NeoTally Local",
+  "description": "A modern, browser-based accounting software inspired by Tally. Runs entirely locally with no internet required. Features ledger management, double-entry voucher recording, and real-time financial reporting.",
+  "requestFramePermissions": []
+}
