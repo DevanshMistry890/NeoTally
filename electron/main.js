@@ -1,6 +1,24 @@
 const { app, BrowserWindow } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const url = require('url'); // <--- ADDED for robust file path handling
+
+function handleAutoUpdates() {
+  if (app.isPackaged) {
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'DevanshMistry890', 
+      repo: 'NeoTally'
+    });
+    
+    // Check for updates on startup
+    autoUpdater.checkForUpdatesAndNotify();
+
+    // Log update events (optional, useful for debugging)
+    autoUpdater.on('update-available', () => console.log('Update available.'));
+    autoUpdater.on('update-downloaded', () => console.log('Update downloaded; installing on quit.'));
+  }
+}
 
 function createWindow() {
   // Check if the app is running from the packaged executable (production)
@@ -39,5 +57,6 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) {
     createWindow();
+    handleAutoUpdates();
   }
 });

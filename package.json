@@ -1,10 +1,14 @@
 {
   "name": "neotally-local",
   "private": true,
-  "version": "0.0.0",
+  "version": "0.0.1",
   "main": "electron/main.js",
   "description": "Renewed tally application",
   "author": "Shivam Mistry",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DevanshMistry890/NeoTally.git"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
@@ -14,6 +18,7 @@
   },
   "dependencies": {
     "electron-is-dev": "^3.0.1",
+    "electron-updater": "^6.6.2",
     "lucide-react": "^0.554.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -31,7 +36,7 @@
     "wait-on": "^8.0.1"
   },
   "build": {
-    "appId": "com.neotally.local",
+    "appId": "com.devanshmistry.neotally",
     "productName": "NeoTally",
     "directories": {
       "output": "release-builds"
@@ -40,15 +45,16 @@
       "dist/**/*",
       "electron/**/*"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "DevanshMistry890",
+      "repo": "NeoTally"
+    },
     "win": {
       "target": "nsis",
-      "icon": "public/favicon.ico"
-    },
-    "mac": {
-      "target": "dmg"
-    },
-    "linux": {
-      "target": "AppImage"
+      "publish": [
+        "github"
+      ]
     }
   }
 }
