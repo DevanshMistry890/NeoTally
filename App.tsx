@@ -1,5 +1,5 @@
 
-import React, { useState, useReducer } from 'react';
+import React, { useState, useReducer, useEffect } from 'react';
 import { Layout } from './components/Layout';
 import { AppState, Ledger, StockItem, Voucher, VoucherType, Employee } from './types';
 import { getInitialState, saveState, exportData } from './services/storageService';
@@ -8,6 +8,15 @@ import { Masters } from './components/Masters';
 import { VoucherEntryForm } from './components/VoucherEntryForm';
 import { DayBook } from './components/DayBook';
 import { Reports } from './components/Reports';
+
+declare global {
+  interface Window {
+    ipcRenderer?: {
+      on: (channel: string, callback: (event: any, data: string) => void) => void;
+      removeAllListeners: (channel: string) => void;
+    };
+  }
+}
 
 type Action = 
     | { type: 'LOAD_STATE', payload: AppState }
@@ -107,6 +116,44 @@ function App() {
                 return <Gateway onSelect={(v) => setView(v)} stats={{ ledgers: state.ledgers.length, vouchers: state.vouchers.length, items: state.stockItems.length, employees: state.employees.length }} />;
         }
     };
+
+    useEffect(() => {
+        // Check if the IPC channel is available
+        if (window.ipcRenderer) {
+            const handleUpdateStatus = (event: any, status: string) => {
+                let message = '';
+
+                if (status === 'checking') {
+                    message = 'Checking for updates... Please wait.';
+                } else if (status === 'available') {
+                    message = 'Update found! Downloading patch in the background.';
+                } else if (status === 'not-available') {
+                    message = `You are running the latest version.`;
+                } else if (status === 'downloaded') {
+                    message = 'Update successfully downloaded. Relaunch the app to install!';
+                } else if (status.startsWith('error')) {
+                    message = `Update check failed. Error: ${status.split(':')[1]}`;
+                } else if (status === 'skipped') {
+                    message = 'Update check skipped (running in development mode).';
+                }
+
+                if (message) {
+                    // Display a native dialog box for immediate user feedback
+                    alert(message);
+                }
+            };
+
+            // Start listening for the 'update-status' channel
+            window.ipcRenderer.on('update-status', handleUpdateStatus);
+
+            // Clean up the listener when the component unmounts
+            return () => {
+                window.ipcRenderer?.removeAllListeners('update-status');
+            };
+        } else {
+            alert("ipc render not available");
+        }
+    }, []);
 
     return (
         <Layout 
