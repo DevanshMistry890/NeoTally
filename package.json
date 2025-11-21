@@ -5,6 +5,7 @@
   "main": "electron/main.js",
   "description": "Renewed tally application",
   "author": "Shivam Mistry",
+  "icon": "public/favicon.ico",
   "repository": {
     "type": "git",
     "url": "https://github.com/DevanshMistry890/NeoTally.git"
@@ -52,6 +53,7 @@
     },
     "win": {
       "target": "nsis",
+      "icon": "public/favicon.ico",
       "publish": [
         "github"
       ]
