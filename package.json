@@ -1,7 +1,7 @@
 {
   "name": "neotally-local",
   "private": true,
-  "version": "0.0.5",
+  "version": "0.0.6",
   "main": "electron/main.js",
   "description": "Renewed tally application",
   "author": "Shivam Mistry",
