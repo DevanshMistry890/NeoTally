@@ -1,9 +1,10 @@
+
 import React from 'react';
-import { AppState } from '../types';
+import { CompanyData } from '../types';
 import { ArrowLeft, Trash2 } from 'lucide-react';
 
 interface DayBookProps {
-    state: AppState;
+    state: CompanyData;
     onDelete: (id: string) => void;
     onBack: () => void;
 }

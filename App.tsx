@@ -1,166 +1,144 @@
 
-import React, { useState, useReducer, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Layout } from './components/Layout';
-import { AppState, Ledger, StockItem, Voucher, VoucherType, Employee } from './types';
-import { getInitialState, saveState, exportData } from './services/storageService';
+import { CompanySelect } from './components/CompanySelect';
+import { GlobalState, getGlobalState, saveGlobalState, createNewCompany } from './services/storageService';
+import { Company, VoucherType } from './types';
 import { Gateway } from './components/Gateway';
 import { Masters } from './components/Masters';
 import { VoucherEntryForm } from './components/VoucherEntryForm';
 import { DayBook } from './components/DayBook';
 import { Reports } from './components/Reports';
 
-declare global {
-  interface Window {
-    ipcRenderer?: {
-      on: (channel: string, callback: (event: any, data: string) => void) => void;
-      removeAllListeners: (channel: string) => void;
-    };
-  }
-}
-
-type Action = 
-    | { type: 'LOAD_STATE', payload: AppState }
-    | { type: 'ADD_LEDGER', payload: Ledger }
-    | { type: 'ADD_ITEM', payload: StockItem }
-    | { type: 'ADD_EMPLOYEE', payload: Employee }
-    | { type: 'ADD_VOUCHER', payload: Voucher }
-    | { type: 'DELETE_VOUCHER', payload: string };
-
-const reducer = (state: AppState, action: Action): AppState => {
-    let newState = state;
-    switch (action.type) {
-        case 'LOAD_STATE':
-            newState = action.payload;
-            break;
-        case 'ADD_LEDGER':
-            newState = { ...state, ledgers: [...state.ledgers, action.payload] };
-            break;
-        case 'ADD_ITEM':
-            newState = { ...state, stockItems: [...state.stockItems, action.payload] };
-            break;
-        case 'ADD_EMPLOYEE':
-            newState = { ...state, employees: [...state.employees, action.payload] };
-            break;
-        case 'ADD_VOUCHER':
-            newState = { ...state, vouchers: [...state.vouchers, action.payload] };
-            break;
-        case 'DELETE_VOUCHER':
-            newState = { ...state, vouchers: state.vouchers.filter(v => v.id !== action.payload) };
-            break;
-        default:
-            return state;
-    }
-    saveState(newState);
-    return newState;
-};
-
 function App() {
-    const [state, dispatch] = useReducer(reducer, getInitialState());
-    const [view, setView] = useState('gateway'); 
-    const [currentVoucherType, setCurrentVoucherType] = useState<VoucherType>(VoucherType.PAYMENT);
+    const [globalState, setGlobalState] = useState<GlobalState>(getGlobalState());
+    const [activeCompany, setActiveCompany] = useState<Company | null>(null);
+    const [view, setView] = useState('company_select'); // Default start
+    const [voucherType, setVoucherType] = useState<VoucherType>(VoucherType.PAYMENT);
 
-    const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            try {
-                const json = JSON.parse(event.target?.result as string);
-                dispatch({ type: 'LOAD_STATE', payload: json });
-                alert("Data loaded successfully!");
-            } catch (error) {
-                alert("Invalid backup file.");
-            }
-        };
-        reader.readAsText(file);
+    // Sync Active Company with Global State whenever it changes
+    useEffect(() => {
+        if (activeCompany) {
+            const updatedCompanies = globalState.companies.map(c => c.id === activeCompany.id ? activeCompany : c);
+            const newState = { ...globalState, companies: updatedCompanies, activeCompanyId: activeCompany.id };
+            saveGlobalState(newState);
+            setGlobalState(newState);
+        }
+    }, [activeCompany]); // Be careful with dependency loop here, actually we should only save on explicit actions
+
+    // Helper to update active company data safely
+    const updateCompanyData = (updateFn: (c: Company) => Company) => {
+        if (!activeCompany) return;
+        const updated = updateFn(activeCompany);
+        setActiveCompany(updated);
+        // Force save immediately
+        const updatedCompanies = globalState.companies.map(c => c.id === updated.id ? updated : c);
+        const newState = { ...globalState, companies: updatedCompanies };
+        setGlobalState(newState);
+        saveGlobalState(newState);
     };
+
+    const handleSelectCompany = (id: string) => {
+        const company = globalState.companies.find(c => c.id === id);
+        if (company) {
+            setActiveCompany(company);
+            setView('gateway');
+        }
+    };
+
+    const handleCreateCompany = (name: string, fy: string, addr: string) => {
+        const newCo = createNewCompany(name, fy, addr);
+        const newState = { ...globalState, companies: [...globalState.companies, newCo], activeCompanyId: newCo.id };
+        setGlobalState(newState);
+        saveGlobalState(newState);
+        setActiveCompany(newCo);
+        setView('gateway');
+    };
+
+    if (view === 'company_select' || !activeCompany) {
+        return <CompanySelect 
+            companies={globalState.companies} 
+            onSelect={handleSelectCompany} 
+            onCreate={handleCreateCompany} 
+        />;
+    }
 
     const renderContent = () => {
+        if (view.startsWith('masters_')) {
+            const type = view.split('_')[1] as 'ledger' | 'item' | 'employee';
+            return <Masters 
+                type={type} 
+                data={activeCompany.data} 
+                onSave={(item, dataType) => {
+                    updateCompanyData(c => ({
+                        ...c,
+                        data: {
+                            ...c.data,
+                            ledgers: dataType === 'ledger' ? [...c.data.ledgers, item] : c.data.ledgers,
+                            stockItems: dataType === 'item' ? [...c.data.stockItems, item] : c.data.stockItems,
+                            employees: dataType === 'employee' ? [...c.data.employees, item] : c.data.employees
+                        }
+                    }));
+                    setView('gateway');
+                }} 
+                onCancel={() => setView('gateway')} 
+            />;
+        }
+
+        if (view.startsWith('voucher_')) {
+            const typeStr = view.split('_')[1].toUpperCase();
+            // Map string to VoucherType enum roughly
+            let type = VoucherType.PAYMENT;
+            if (typeStr === 'SALES') type = VoucherType.SALES;
+            if (typeStr === 'RECEIPT') type = VoucherType.RECEIPT;
+            if (typeStr === 'CONTRA') type = VoucherType.CONTRA;
+            if (typeStr === 'JOURNAL') type = VoucherType.JOURNAL;
+            if (typeStr === 'PURCHASE') type = VoucherType.PURCHASE;
+
+            return <VoucherEntryForm 
+                data={activeCompany.data} 
+                initialType={type} 
+                onSave={(v) => {
+                    updateCompanyData(c => ({
+                        ...c,
+                        data: { ...c.data, vouchers: [...c.data.vouchers, v] }
+                    }));
+                    setView('gateway'); // Or stay? Tally usually stays or asks. We go to Gateway for safety.
+                }} 
+                onCancel={() => setView('gateway')} 
+            />;
+        }
+
         switch (view) {
             case 'gateway':
-                return <Gateway 
-                    onSelect={(v) => setView(v)} 
-                    stats={{ 
-                        ledgers: state.ledgers.length, 
-                        vouchers: state.vouchers.length,
-                        items: state.stockItems.length,
-                        employees: state.employees.length
-                    }} 
-                />;
-            case 'masters_ledger':
-                return <Masters type="ledger" state={state} onSave={(l) => { dispatch({type: 'ADD_LEDGER', payload: l as Ledger}); setView('gateway'); }} onCancel={() => setView('gateway')} />;
-            case 'masters_item':
-                return <Masters type="item" state={state} onSave={(i) => { dispatch({type: 'ADD_ITEM', payload: i as StockItem}); setView('gateway'); }} onCancel={() => setView('gateway')} />;
-            case 'masters_employee':
-                return <Masters type="employee" state={state} onSave={(e) => { dispatch({type: 'ADD_EMPLOYEE', payload: e as Employee}); setView('gateway'); }} onCancel={() => setView('gateway')} />;
-            case 'voucher':
-                return <VoucherEntryForm 
-                    state={state} 
-                    initialType={currentVoucherType}
-                    onSave={(v) => { dispatch({type: 'ADD_VOUCHER', payload: v}); setView('daybook'); }}
-                    onCancel={() => setView('gateway')}
-                />;
+                return <Gateway onSelect={setView} />;
             case 'daybook':
-                return <DayBook state={state} onDelete={(id) => dispatch({type: 'DELETE_VOUCHER', payload: id})} onBack={() => setView('gateway')} />;
+                return <DayBook 
+                    state={activeCompany.data as any} // Temporary cast for compatibility if types differ slightly
+                    onDelete={(id) => {
+                         updateCompanyData(c => ({
+                            ...c,
+                            data: { ...c.data, vouchers: c.data.vouchers.filter(v => v.id !== id) }
+                        }));
+                    }} 
+                    onBack={() => setView('gateway')} 
+                />;
             case 'balance_sheet':
-                return <Reports type="BS" state={state} onBack={() => setView('gateway')} />;
             case 'pnl':
-                return <Reports type="PNL" state={state} onBack={() => setView('gateway')} />;
-            case 'stock':
-                return <Reports type="STOCK" state={state} onBack={() => setView('gateway')} />;
-            case 'gst_report':
-                return <Reports type="GST" state={state} onBack={() => setView('gateway')} />;
-            case 'payroll_report':
-                return <Reports type="PAYROLL" state={state} onBack={() => setView('gateway')} />;
+            case 'stock_summary':
+                return <Reports type={view} data={activeCompany.data} onBack={() => setView('gateway')} />;
             default:
-                return <Gateway onSelect={(v) => setView(v)} stats={{ ledgers: state.ledgers.length, vouchers: state.vouchers.length, items: state.stockItems.length, employees: state.employees.length }} />;
+                return <Gateway onSelect={setView} />;
         }
     };
-
-    useEffect(() => {
-        // Check if the IPC channel is available
-        if (window.ipcRenderer) {
-            const handleUpdateStatus = (event: any, status: string) => {
-                let message = '';
-
-                if (status === 'checking') {
-                    message = 'Checking for updates... Please wait.';
-                } else if (status === 'available') {
-                    message = 'Update found! Downloading patch in the background.';
-                } else if (status === 'not-available') {
-                    message = `You are running the latest version.`;
-                } else if (status === 'downloaded') {
-                    message = 'Update successfully downloaded. Relaunch the app to install!';
-                } else if (status.startsWith('error')) {
-                    message = `Update check failed. Error: ${status.split(':')[1]}`;
-                } else if (status === 'skipped') {
-                    message = 'Update check skipped (running in development mode).';
-                }
-
-                if (message) {
-                    // Display a native dialog box for immediate user feedback
-                    alert(message);
-                }
-            };
-
-            // Start listening for the 'update-status' channel
-            window.ipcRenderer.on('update-status', handleUpdateStatus);
-
-            // Clean up the listener when the component unmounts
-            return () => {
-                window.ipcRenderer?.removeAllListeners('update-status');
-            };
-        } else {
-            alert("ipc render not available");
-        }
-    }, []);
 
     return (
         <Layout 
-            activeView={view} 
+            companyName={activeCompany.name} 
+            financialPeriod={`Apr ${activeCompany.financialYearStart.split('-')[0]} - Mar`}
+            currentView={view}
             onChangeView={setView}
-            onExport={() => exportData(state)}
-            onImport={handleImport}
+            onBack={() => setView('gateway')}
         >
             {renderContent()}
         </Layout>

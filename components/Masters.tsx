@@ -1,216 +1,189 @@
 
 import React, { useState } from 'react';
-import { AppState, Ledger, StockItem, Employee, DEFAULT_GROUPS, DEFAULT_GODOWNS } from '../types';
-import { Input, Select } from './Input';
+import { CompanyData, Ledger, StockItem, Employee, DEFAULT_GROUPS, Godown, StockGroup, Unit, Batch } from '../types';
 
 interface MastersProps {
     type: 'ledger' | 'item' | 'employee';
-    state: AppState;
-    onSave: (data: Ledger | StockItem | Employee) => void;
+    data: CompanyData;
+    onSave: (data: any, dataType: string) => void;
     onCancel: () => void;
 }
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
-export const Masters: React.FC<MastersProps> = ({ type, state, onSave, onCancel }) => {
-    const [activeTab, setActiveTab] = useState('general');
-    
-    // Ledger State
+const SectionHeader = ({ title }: { title: string }) => (
+    <div className="text-blue-800 font-bold border-b border-blue-200 pb-1 mb-3 text-sm uppercase mt-4">
+        {title}
+    </div>
+);
+
+const Field = ({ label, children }: { label: string, children?: React.ReactNode }) => (
+    <div className="flex items-center mb-2">
+        <label className="w-1/3 text-sm text-gray-700 font-medium">{label}</label>
+        <div className="w-2/3">{children}</div>
+    </div>
+);
+
+export const Masters: React.FC<MastersProps> = ({ type, data, onSave, onCancel }) => {
+    // Ledger Form State
     const [lName, setLName] = useState('');
     const [lGroup, setLGroup] = useState(DEFAULT_GROUPS[0].id);
     const [lOpBal, setLOpBal] = useState('0');
     const [lOpBalType, setLOpBalType] = useState<'Dr' | 'Cr'>('Dr');
-    const [lTaxReg, setLTaxReg] = useState('');
     const [lGstin, setLGstin] = useState('');
-    const [lBankAcc, setLBankAcc] = useState('');
-    const [lIfsc, setLIfsc] = useState('');
-    const [lInterest, setLInterest] = useState('0');
-
-    // Item State
+    
+    // Item Form State
     const [iName, setIName] = useState('');
-    const [iUnit, setIUnit] = useState('Nos');
-    const [iOpQty, setIOpQty] = useState('0');
-    const [iOpRate, setIOpRate] = useState('0');
-    const [iGodown, setIGodown] = useState(DEFAULT_GODOWNS[0]?.id || '');
-    const [iReorder, setIReorder] = useState('0');
+    const [iGroup, setIGroup] = useState('');
+    const [iUnit, setIUnit] = useState(data.units[0]?.id || '');
+    const [iGodown, setIGodown] = useState(data.godowns[0]?.id || '');
     const [iBatch, setIBatch] = useState(false);
-    const [iHsn, setIHsn] = useState('');
-    const [iTaxRate, setITaxRate] = useState('0');
-
-    // Employee State
+    
+    // Employee Form State
     const [eName, setEName] = useState('');
     const [eDesig, setEDesig] = useState('');
-    const [eDept, setEDept] = useState('');
     const [eSalary, setESalary] = useState('0');
-    const [eDoj, setEDoj] = useState(new Date().toISOString().split('T')[0]);
 
     const handleSave = () => {
         if (type === 'ledger') {
-            if (!lName) return alert('Name is required');
-            const ledger: Ledger = {
+            const newItem: Ledger = {
                 id: generateId(),
                 name: lName,
                 groupId: lGroup,
                 openingBalance: parseFloat(lOpBal) || 0,
                 openingBalanceType: lOpBalType,
-                taxDetails: { gstin: lGstin, taxType: lGstin ? 'GST' : 'None' },
-                bankDetails: { accountNumber: lBankAcc, ifsc: lIfsc },
-                interestRate: parseFloat(lInterest)
+                taxDetails: { gstin: lGstin }
             };
-            onSave(ledger);
+            onSave(newItem, 'ledger');
         } else if (type === 'item') {
-            if (!iName) return alert('Name is required');
-            const item: StockItem = {
+            const newItem: StockItem = {
                 id: generateId(),
                 name: iName,
+                stockGroupId: iGroup,
                 unit: iUnit,
-                openingQuantity: parseFloat(iOpQty) || 0,
-                openingRate: parseFloat(iOpRate) || 0,
+                openingQuantity: 0,
+                openingRate: 0,
                 godownId: iGodown,
-                reorderLevel: parseFloat(iReorder),
-                maintainBatches: iBatch,
-                taxDetails: { hsnCode: iHsn, taxRate: parseFloat(iTaxRate) }
+                maintainBatches: iBatch
             };
-            onSave(item);
+            onSave(newItem, 'item');
         } else {
-            if (!eName) return alert('Name is required');
-            const emp: Employee = {
+             const newItem: Employee = {
                 id: generateId(),
                 name: eName,
                 designation: eDesig,
-                department: eDept,
-                basicSalary: parseFloat(eSalary) || 0,
-                dateOfJoining: eDoj
+                department: 'General',
+                basicSalary: parseFloat(eSalary),
+                dateOfJoining: new Date().toISOString()
             };
-            onSave(emp);
+            onSave(newItem, 'employee');
         }
     };
 
-    const TabButton = ({ id, label }: { id: string, label: string }) => (
-        <button 
-            onClick={() => setActiveTab(id)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === id 
-                ? 'border-blue-600 text-blue-600' 
-                : 'border-transparent text-gray-500 hover:text-gray-700'
-            }`}
-        >
-            {label}
-        </button>
-    );
-
     return (
-        <div className="max-w-3xl mx-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl overflow-hidden border border-white/50">
-            <div className="bg-gray-50 border-b border-gray-200 p-6 flex justify-between items-center">
-                <h2 className="text-xl font-bold text-gray-800">
-                    {type === 'ledger' ? 'Ledger Master' : type === 'item' ? 'Stock Item Master' : 'Employee Master'}
-                </h2>
-                <div className="flex gap-2">
-                    <TabButton id="general" label="General" />
-                    {type === 'ledger' && <TabButton id="statutory" label="Statutory & Bank" />}
-                    {type === 'item' && <TabButton id="inventory" label="Advanced Inventory" />}
-                    {type === 'item' && <TabButton id="compliance" label="GST & Compliance" />}
-                    {type === 'employee' && <TabButton id="payroll" label="Payroll Details" />}
+        <div className="h-full flex flex-col items-center justify-center p-4">
+            <div className="w-full max-w-2xl bg-white shadow-xl border border-gray-300">
+                {/* Header */}
+                <div className="bg-blue-600 text-white p-2 font-bold flex justify-between">
+                    <span>{type === 'ledger' ? 'Ledger Creation' : type === 'item' ? 'Stock Item Creation' : 'Employee Creation'}</span>
+                    <button onClick={onCancel}><span className="text-xs">✕</span></button>
                 </div>
-            </div>
-            
-            <div className="p-8 min-h-[400px]">
-                {/* LEDGER FORM */}
-                {type === 'ledger' && activeTab === 'general' && (
-                    <div className="space-y-4">
-                        <Input label="Ledger Name" value={lName} onChange={e => setLName(e.target.value)} autoFocus />
-                        <Select label="Under Group" value={lGroup} onChange={e => setLGroup(e.target.value)}>
-                            {state.groups.map(g => <option key={g.id} value={g.id}>{g.name} ({g.type})</option>)}
-                        </Select>
-                        <div className="flex gap-4">
-                            <Input className="flex-1" label="Opening Balance" type="number" value={lOpBal} onChange={e => setLOpBal(e.target.value)} />
-                            <Select className="w-32" label="Dr/Cr" value={lOpBalType} onChange={e => setLOpBalType(e.target.value as any)}>
-                                <option value="Dr">Dr</option>
-                                <option value="Cr">Cr</option>
-                            </Select>
-                        </div>
-                        <Input label="Interest Rate (%)" type="number" value={lInterest} onChange={e => setLInterest(e.target.value)} placeholder="0.00" />
-                    </div>
-                )}
-                {type === 'ledger' && activeTab === 'statutory' && (
-                    <div className="space-y-4">
-                        <h3 className="text-sm font-bold text-gray-400 uppercase border-b pb-1">GST Details</h3>
-                        <Input label="GSTIN / UIN" value={lGstin} onChange={e => setLGstin(e.target.value)} placeholder="22AAAAA0000A1Z5" />
-                        <Select label="Registration Type" value={lTaxReg} onChange={e => setLTaxReg(e.target.value)}>
-                            <option value="regular">Regular</option>
-                            <option value="composite">Composition</option>
-                            <option value="unregistered">Unregistered</option>
-                        </Select>
-                        <h3 className="text-sm font-bold text-gray-400 uppercase border-b pb-1 mt-6">Bank Details</h3>
-                        <div className="grid grid-cols-2 gap-4">
-                             <Input label="Bank Account Number" value={lBankAcc} onChange={e => setLBankAcc(e.target.value)} />
-                             <Input label="IFSC Code" value={lIfsc} onChange={e => setLIfsc(e.target.value)} />
-                        </div>
-                    </div>
-                )}
 
-                {/* ITEM FORM */}
-                {type === 'item' && activeTab === 'general' && (
-                    <div className="space-y-4">
-                        <Input label="Item Name" value={iName} onChange={e => setIName(e.target.value)} autoFocus />
-                        <div className="grid grid-cols-2 gap-4">
-                             <Input label="Unit (e.g., Nos, Kg)" value={iUnit} onChange={e => setIUnit(e.target.value)} />
-                             <Select label="Default Godown" value={iGodown} onChange={e => setIGodown(e.target.value)}>
-                                {state.godowns.map(g => <option key={g.id} value={g.id}>{g.name} ({g.location})</option>)}
-                             </Select>
-                        </div>
-                        <div className="flex gap-4">
-                            <Input className="flex-1" label="Op Qty" type="number" value={iOpQty} onChange={e => setIOpQty(e.target.value)} />
-                            <Input className="flex-1" label="Rate" type="number" value={iOpRate} onChange={e => setIOpRate(e.target.value)} />
-                        </div>
-                    </div>
-                )}
-                {type === 'item' && activeTab === 'inventory' && (
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
-                            <div>
-                                <div className="font-medium text-gray-900">Maintain Batches</div>
-                                <div className="text-xs text-gray-500">Track expiry and manufacturing dates</div>
+                {/* Body */}
+                <div className="p-8 bg-yellow-50/50 min-h-[400px]">
+                    {type === 'ledger' && (
+                        <>
+                            <Field label="Name">
+                                <input className="w-full bg-white border border-gray-300 p-1 text-sm focus:bg-yellow-100 outline-none" 
+                                    value={lName} onChange={e => setLName(e.target.value)} autoFocus />
+                            </Field>
+                            <Field label="Under">
+                                <select className="w-full bg-white border border-gray-300 p-1 text-sm outline-none"
+                                    value={lGroup} onChange={e => setLGroup(e.target.value)}>
+                                    {data.groups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                </select>
+                            </Field>
+                            
+                            <SectionHeader title="Statutory Information" />
+                            <Field label="GSTIN/UIN">
+                                <input className="w-full bg-white border border-gray-300 p-1 text-sm focus:bg-yellow-100 outline-none uppercase" 
+                                    value={lGstin} onChange={e => setLGstin(e.target.value)} />
+                            </Field>
+
+                            <SectionHeader title="Opening Balance" />
+                            <div className="flex gap-2">
+                                <input className="flex-1 bg-white border border-gray-300 p-1 text-sm text-right focus:bg-yellow-100 outline-none" 
+                                    type="number" value={lOpBal} onChange={e => setLOpBal(e.target.value)} />
+                                <select className="w-20 bg-white border border-gray-300 p-1 text-sm outline-none"
+                                    value={lOpBalType} onChange={e => setLOpBalType(e.target.value as any)}>
+                                    <option value="Dr">Dr</option>
+                                    <option value="Cr">Cr</option>
+                                </select>
                             </div>
-                            <input type="checkbox" checked={iBatch} onChange={e => setIBatch(e.target.checked)} className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <Input label="Reorder Level" type="number" value={iReorder} onChange={e => setIReorder(e.target.value)} placeholder="Min quantity alert" />
-                    </div>
-                )}
-                {type === 'item' && activeTab === 'compliance' && (
-                    <div className="space-y-4">
-                        <Input label="HSN/SAC Code" value={iHsn} onChange={e => setIHsn(e.target.value)} />
-                        <Input label="Tax Rate (%)" type="number" value={iTaxRate} onChange={e => setITaxRate(e.target.value)} />
-                        <div className="text-xs text-gray-500 bg-blue-50 p-3 rounded">
-                            Configuring tax here will auto-calculate IGST/CGST/SGST during voucher entry based on party location.
-                        </div>
-                    </div>
-                )}
+                        </>
+                    )}
 
-                {/* EMPLOYEE FORM */}
-                {type === 'employee' && activeTab === 'general' && (
-                    <div className="space-y-4">
-                        <Input label="Employee Name" value={eName} onChange={e => setEName(e.target.value)} autoFocus />
-                        <div className="grid grid-cols-2 gap-4">
-                            <Input label="Designation" value={eDesig} onChange={e => setEDesig(e.target.value)} />
-                            <Input label="Department" value={eDept} onChange={e => setEDept(e.target.value)} />
-                        </div>
-                         <Input label="Date of Joining" type="date" value={eDoj} onChange={e => setEDoj(e.target.value)} />
-                    </div>
-                )}
-                {type === 'employee' && activeTab === 'payroll' && (
-                    <div className="space-y-4">
-                         <Input label="Basic Salary (Monthly)" type="number" value={eSalary} onChange={e => setESalary(e.target.value)} />
-                         <div className="p-4 bg-yellow-50 text-yellow-800 text-sm rounded border border-yellow-200">
-                             Note: PF and ESI calculations will be automated in the Pay Sheet report based on this Basic Salary.
-                         </div>
-                    </div>
-                )}
-            </div>
+                    {type === 'item' && (
+                        <>
+                            <Field label="Name">
+                                <input className="w-full bg-white border border-gray-300 p-1 text-sm focus:bg-yellow-100 outline-none" 
+                                    value={iName} onChange={e => setIName(e.target.value)} autoFocus />
+                            </Field>
+                            <Field label="Under (Group)">
+                                <select className="w-full bg-white border border-gray-300 p-1 text-sm outline-none"
+                                    value={iGroup} onChange={e => setIGroup(e.target.value)}>
+                                    <option value="">Primary</option>
+                                    {data.stockGroups.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                </select>
+                            </Field>
+                            <Field label="Units">
+                                <select className="w-full bg-white border border-gray-300 p-1 text-sm outline-none"
+                                    value={iUnit} onChange={e => setIUnit(e.target.value)}>
+                                    {data.units.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                                </select>
+                            </Field>
+                            
+                            <SectionHeader title="Additional Details" />
+                            <Field label="Maintain Batches?">
+                                <select className="w-20 bg-white border border-gray-300 p-1 text-sm outline-none"
+                                    value={iBatch ? 'Yes' : 'No'} onChange={e => setIBatch(e.target.value === 'Yes')}>
+                                    <option value="No">No</option>
+                                    <option value="Yes">Yes</option>
+                                </select>
+                            </Field>
+                             <Field label="Default Godown">
+                                <select className="w-full bg-white border border-gray-300 p-1 text-sm outline-none"
+                                    value={iGodown} onChange={e => setIGodown(e.target.value)}>
+                                    {data.godowns.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                                </select>
+                            </Field>
+                        </>
+                    )}
 
-            <div className="bg-gray-50 p-6 flex justify-end gap-3 border-t border-gray-200">
-                <button onClick={onCancel} className="px-4 py-2 rounded text-gray-600 hover:bg-gray-200 font-medium">Cancel</button>
-                <button onClick={handleSave} className="px-6 py-2 rounded bg-blue-600 text-white shadow-lg shadow-blue-200 hover:bg-blue-700 font-medium">Save Master</button>
+                    {type === 'employee' && (
+                         <>
+                             <Field label="Name">
+                                <input className="w-full bg-white border border-gray-300 p-1 text-sm focus:bg-yellow-100 outline-none" 
+                                    value={eName} onChange={e => setEName(e.target.value)} autoFocus />
+                             </Field>
+                             <Field label="Designation">
+                                <input className="w-full bg-white border border-gray-300 p-1 text-sm focus:bg-yellow-100 outline-none" 
+                                    value={eDesig} onChange={e => setEDesig(e.target.value)} />
+                             </Field>
+                             <Field label="Basic Salary">
+                                <input className="w-full bg-white border border-gray-300 p-1 text-sm focus:bg-yellow-100 outline-none" 
+                                    type="number" value={eSalary} onChange={e => setESalary(e.target.value)} />
+                             </Field>
+                         </>
+                    )}
+                </div>
+
+                {/* Footer Actions */}
+                <div className="bg-gray-100 p-3 flex justify-end gap-3 border-t border-gray-300">
+                    <button onClick={handleSave} className="px-6 py-1 bg-green-600 text-white text-sm font-bold shadow hover:bg-green-700">
+                        Accept (Enter)
+                    </button>
+                </div>
             </div>
         </div>
     );

@@ -25,7 +25,7 @@ export interface AccountGroup {
 export interface TaxDetails {
     gstin?: string;
     hsnCode?: string;
-    taxRate?: number; // Percentage
+    taxRate?: number;
     taxType?: 'GST' | 'TDS' | 'None';
     pan?: string;
 }
@@ -44,8 +44,8 @@ export interface Ledger {
     openingBalanceType: 'Dr' | 'Cr';
     taxDetails?: TaxDetails;
     bankDetails?: BankDetails;
-    currency?: string; // For multi-currency
-    interestRate?: number; // For interest calculation
+    currency?: string;
+    interestRate?: number;
 }
 
 export interface Godown {
@@ -54,23 +54,37 @@ export interface Godown {
     location?: string;
 }
 
-export interface BatchInfo {
-    batchName: string;
-    expiryDate?: string;
-    manufacturingDate?: string;
+export interface StockGroup {
+    id: string;
+    name: string;
+    parentId?: string;
+}
+
+export interface Unit {
+    id: string;
+    name: string; // e.g. "Nos", "Kgs"
+    formalName: string; // e.g. "Numbers"
 }
 
 export interface StockItem {
     id: string;
     name: string;
+    stockGroupId?: string;
     unit: string;
     openingQuantity: number;
     openingRate: number;
-    category?: string;
-    godownId?: string; // Default Godown
+    godownId?: string;
     reorderLevel?: number;
     maintainBatches?: boolean;
     taxDetails?: TaxDetails;
+}
+
+export interface Batch {
+    id: string;
+    itemId: string;
+    name: string;
+    manufacturingDate?: string;
+    expiryDate?: string;
 }
 
 export interface Employee {
@@ -83,13 +97,24 @@ export interface Employee {
     email?: string;
 }
 
+// Inventory Allocation for a Ledger Entry (e.g., Sales Ledger -> Item A -> Godown 1)
+export interface InventoryAllocation {
+    itemId: string;
+    godownId: string;
+    batchId?: string;
+    quantity: number;
+    rate: number;
+    amount: number;
+}
+
 export interface VoucherEntry {
     id: string;
     ledgerId: string;
     amount: number; 
     type: 'Dr' | 'Cr';
-    forexAmount?: number; // Foreign currency amount
-    forexRate?: number;   // Exchange rate used
+    forexAmount?: number;
+    forexRate?: number;
+    inventoryAllocations?: InventoryAllocation[]; 
 }
 
 export interface Voucher {
@@ -99,17 +124,30 @@ export interface Voucher {
     type: VoucherType;
     entries: VoucherEntry[];
     narration: string;
-    currencySymbol?: string; // Default base currency is usually empty/system default
+    currencySymbol?: string;
 }
 
-export interface AppState {
+// Represents the data of a SINGLE Company
+export interface CompanyData {
     groups: AccountGroup[];
     ledgers: Ledger[];
+    stockGroups: StockGroup[];
     stockItems: StockItem[];
+    units: Unit[];
     godowns: Godown[];
+    batches: Batch[];
     employees: Employee[];
     vouchers: Voucher[];
     financialYearStart: string;
+}
+
+export interface Company {
+    id: string;
+    name: string;
+    email?: string;
+    address?: string;
+    financialYearStart: string;
+    data: CompanyData;
 }
 
 export const DEFAULT_GROUPS: AccountGroup[] = [

@@ -1,150 +1,103 @@
 
 import React, { useEffect } from 'react';
-import { BookOpen, Calculator, TrendingUp, Package, Users, Landmark, FileText } from 'lucide-react';
 
 interface GatewayProps {
     onSelect: (view: string) => void;
-    stats: { ledgers: number, vouchers: number, items: number, employees: number };
 }
 
-export const Gateway: React.FC<GatewayProps> = ({ onSelect, stats }) => {
+export const Gateway: React.FC<GatewayProps> = ({ onSelect }) => {
     
-    const MenuSection = ({ title, items }: { title: string, items: { label: string, action: string, hotkey: string }[] }) => (
-        <div className="mb-6">
-            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3">{title}</h3>
-            <div className="grid gap-2">
-                {items.map((item) => (
-                    <button 
-                        key={item.action}
-                        onClick={() => onSelect(item.action)}
-                        className="flex items-center justify-between p-3 bg-white/60 hover:bg-white shadow-sm hover:shadow-md border border-transparent hover:border-blue-200 rounded-xl text-left transition-all group"
-                    >
-                        <span className="font-medium text-gray-700 group-hover:text-blue-700">
-                            <span className="text-blue-600 font-bold mr-1">{item.hotkey}</span>
-                            {item.label.substring(1)}
-                        </span>
-                        <div className="h-5 w-5 rounded-full bg-gray-100 group-hover:bg-blue-50 flex items-center justify-center">
-                            <span className="text-xs text-gray-400 group-hover:text-blue-500">→</span>
-                        </div>
-                    </button>
-                ))}
-            </div>
-        </div>
-    );
-
-    // Key listener
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement) return;
             const key = e.key.toUpperCase();
-            if (key === 'C') onSelect('masters_ledger');
+            // Hotkeys
+            if (key === 'A') onSelect('masters_ledger');
             if (key === 'I') onSelect('masters_item');
-            if (key === 'E') onSelect('masters_employee');
-            if (key === 'V') onSelect('voucher');
+            if (key === 'V') onSelect('voucher_payment'); // Default to payment, user changes inside
             if (key === 'B') onSelect('balance_sheet');
             if (key === 'P') onSelect('pnl');
+            if (key === 'S') onSelect('stock_summary');
             if (key === 'D') onSelect('daybook');
-            if (key === 'S') onSelect('stock');
-            if (key === 'G') onSelect('gst_report');
-            if (key === 'Y') onSelect('payroll_report');
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
     }, [onSelect]);
 
+    const MenuItem = ({ label, hotkey, action }: { label: string, hotkey: string, action: string }) => (
+        <button 
+            onClick={() => onSelect(action)}
+            className="w-full text-left px-4 py-1 hover:bg-yellow-100 hover:text-blue-900 transition-colors flex gap-1 items-center group"
+        >
+            <span className="text-red-600 font-bold">{hotkey}</span>
+            <span className="text-gray-800 font-medium group-hover:font-bold">{label.substring(1)}</span>
+        </button>
+    );
+
     return (
-        <div className="h-full flex flex-col md:flex-row gap-6">
-            <div className="flex-1 overflow-y-auto no-scrollbar">
-                <div className="bg-white/40 backdrop-blur-md border border-white/40 rounded-2xl p-8 shadow-xl min-h-full">
-                    <h2 className="text-2xl font-bold text-gray-800 mb-8 flex items-center gap-3">
-                        <div className="p-2 bg-blue-600 rounded-lg text-white"><Calculator size={24} /></div>
-                        Gateway of NeoTally
-                    </h2>
-                    
-                    <div className="grid md:grid-cols-2 gap-x-8 gap-y-2">
-                        <MenuSection 
-                            title="Masters" 
-                            items={[
-                                { label: 'Create Ledger', action: 'masters_ledger', hotkey: 'C' },
-                                { label: 'Inventory Items', action: 'masters_item', hotkey: 'I' },
-                                { label: 'Employees', action: 'masters_employee', hotkey: 'E' }
-                            ]} 
-                        />
-                        
-                        <MenuSection 
-                            title="Transactions" 
-                            items={[
-                                { label: 'Vouchers', action: 'voucher', hotkey: 'V' },
-                                { label: 'Day Book', action: 'daybook', hotkey: 'D' }
-                            ]} 
-                        />
-
-                        <MenuSection 
-                            title="Reports" 
-                            items={[
-                                { label: 'Balance Sheet', action: 'balance_sheet', hotkey: 'B' },
-                                { label: 'Profit & Loss', action: 'pnl', hotkey: 'P' },
-                                { label: 'Stock Summary', action: 'stock', hotkey: 'S' }
-                            ]} 
-                        />
-
-                        <MenuSection 
-                            title="Compliance & Payroll" 
-                            items={[
-                                { label: 'GST Returns', action: 'gst_report', hotkey: 'G' },
-                                { label: 'Payroll Sheet', action: 'payroll_report', hotkey: 'Y' },
-                            ]} 
-                        />
+        <div className="flex h-full items-center justify-center">
+            <div className="flex w-full max-w-4xl h-[500px] shadow-2xl rounded-none overflow-hidden border border-gray-400">
+                {/* Left Panel: Branding/Info */}
+                <div className="w-1/2 bg-white/90 p-8 flex flex-col justify-between border-r border-gray-300">
+                    <div>
+                        <h2 className="text-2xl font-bold text-gray-800">Current Status</h2>
+                        <div className="mt-4 space-y-2 text-sm text-gray-600">
+                            <div className="flex justify-between border-b border-dashed border-gray-300 pb-1">
+                                <span>Date of Last Entry</span>
+                                <span className="font-bold">1-Apr-2024</span>
+                            </div>
+                            <div className="flex justify-between border-b border-dashed border-gray-300 pb-1">
+                                <span>Current Period</span>
+                                <span className="font-bold">Apr 23 - Mar 24</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="text-center text-gray-400 text-xs">
+                        NeoTally Solutions Pvt Ltd.
                     </div>
                 </div>
-            </div>
-            
-            <div className="w-full md:w-72 space-y-6">
-                 <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-6 text-white shadow-xl">
-                    <div className="flex items-center gap-3 mb-4 opacity-90">
-                        <TrendingUp size={20} />
-                        <span className="font-medium">Snapshot</span>
-                    </div>
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-end border-b border-white/20 pb-2">
-                            <span className="text-xs text-blue-100">Ledgers</span>
-                            <span className="text-xl font-bold">{stats.ledgers}</span>
-                        </div>
-                         <div className="flex justify-between items-end border-b border-white/20 pb-2">
-                            <span className="text-xs text-blue-100">Vouchers</span>
-                            <span className="text-xl font-bold">{stats.vouchers}</span>
-                        </div>
-                         <div className="flex justify-between items-end border-b border-white/20 pb-2">
-                            <span className="text-xs text-blue-100">Items</span>
-                            <span className="text-xl font-bold">{stats.items}</span>
-                        </div>
-                        <div className="flex justify-between items-end">
-                            <span className="text-xs text-blue-100">Staff</span>
-                            <span className="text-xl font-bold">{stats.employees}</span>
-                        </div>
-                    </div>
-                 </div>
 
-                 <div className="bg-white/60 backdrop-blur p-6 rounded-2xl border border-white/40 shadow-lg">
-                    <div className="flex items-center gap-2 mb-3 text-gray-800 font-bold">
-                        <Landmark size={16}/> 
-                        <span>Bank & Compliance</span>
+                {/* Right Panel: The Menu */}
+                <div className="w-1/2 bg-gray-100 flex flex-col relative">
+                    <div className="bg-blue-800 text-white p-2 text-center font-bold uppercase tracking-wider text-sm shadow">
+                        Gateway of Tally
                     </div>
-                    <div className="text-xs space-y-2 text-gray-600">
-                        <div className="flex justify-between">
-                            <span>GST Filing</span>
-                            <span className="text-green-600 font-bold">Active</span>
+                    
+                    <div className="flex-1 overflow-y-auto py-4 px-8 space-y-6">
+                        
+                        <div>
+                            <h3 className="text-xs text-gray-500 uppercase font-bold mb-1 pl-4">Masters</h3>
+                            <MenuItem label="Accounts Info" hotkey="A" action="masters_ledger" />
+                            <MenuItem label="Inventory Info" hotkey="I" action="masters_item" />
+                            <MenuItem label="Payroll Info" hotkey="L" action="masters_employee" />
                         </div>
-                        <div className="flex justify-between">
-                            <span>E-Way Bill</span>
-                            <span className="text-orange-600 font-bold">Pending</span>
+
+                        <div>
+                            <h3 className="text-xs text-gray-500 uppercase font-bold mb-1 pl-4">Transactions</h3>
+                            <MenuItem label="Accounting Vouchers" hotkey="V" action="voucher_payment" />
+                            <MenuItem label="Inventory Vouchers" hotkey="T" action="voucher_sales" />
+                            <MenuItem label="Payroll Vouchers" hotkey="Y" action="voucher_payroll" />
                         </div>
-                        <div className="flex justify-between">
-                            <span>TDS/TCS</span>
-                            <span className="text-gray-400">No Data</span>
+
+                        <div>
+                            <h3 className="text-xs text-gray-500 uppercase font-bold mb-1 pl-4">Reports</h3>
+                            <MenuItem label="Balance Sheet" hotkey="B" action="balance_sheet" />
+                            <MenuItem label="Profit & Loss A/c" hotkey="P" action="pnl" />
+                            <MenuItem label="Stock Summary" hotkey="S" action="stock_summary" />
+                            <MenuItem label="Ratio Analysis" hotkey="R" action="ratio" />
+                        </div>
+
+                        <div>
+                            <h3 className="text-xs text-gray-500 uppercase font-bold mb-1 pl-4">Display</h3>
+                            <MenuItem label="Day Book" hotkey="D" action="daybook" />
+                            <MenuItem label="GST Reports" hotkey="O" action="gst_report" />
+                        </div>
+
+                        <div className="pt-4 border-t border-gray-300">
+                            <MenuItem label="Quit" hotkey="Q" action="quit" />
                         </div>
                     </div>
-                 </div>
+                </div>
             </div>
         </div>
     );
